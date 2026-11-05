@@ -1,0 +1,1 @@
+AES protects this practice message with a shared secret.

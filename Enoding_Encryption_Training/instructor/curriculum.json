@@ -1,0 +1,286 @@
+{
+  "lessons": [
+    {
+      "title": "Base64",
+      "definition": "An encoding represents bytes as text using a public 64-symbol alphabet. It provides no secret-key protection.",
+      "tool": "Python 3 base64 library. Ubuntu base64 provides an alternative.",
+      "steps": [
+        {
+          "title": "Inspect your input",
+          "command": "cat inputs/01_base64.txt",
+          "explain": "Read the supplied plain-text practice file. You may edit its message.",
+          "expected": "Base64 represents bytes as text."
+        },
+        {
+          "title": "Encode your file",
+          "command": "python3 labs/01_base64.py encode inputs/01_base64.txt work/base64.txt\ncat work/base64.txt",
+          "explain": "encode converts source bytes into Base64 text. It does not encrypt them.",
+          "expected": "A Base64 string that differs from the original message."
+        },
+        {
+          "title": "Decode your output",
+          "command": "python3 labs/01_base64.py decode work/base64.txt work/base64_recovered.txt\ncat work/base64_recovered.txt",
+          "explain": "decode reverses the Base64 representation. This is a separate command.",
+          "expected": "The original message returns."
+        },
+        {
+          "title": "Verify and try the native tool",
+          "command": "cmp inputs/01_base64.txt work/base64_recovered.txt\nbase64 --decode work/base64.txt > work/base64_native.txt\ncmp inputs/01_base64.txt work/base64_native.txt",
+          "explain": "cmp prints nothing when files match. --decode is the Ubuntu base64 reversal flag.",
+          "expected": "Both comparisons are silent and return status 0."
+        }
+      ],
+      "check": "Explain why no secret key was needed. Change the input and repeat both directions."
+    },
+    {
+      "title": "ROT32",
+      "definition": "A rotation cipher substitutes letters using an alphabet and shift. Here ASCII letters rotate by 32 modulo 26, equivalent to ROT6. This definition preserves case, digits and punctuation.",
+      "tool": "Python 3 byte translation. ROT32 here is explicitly a 26-letter Caesar rotation.",
+      "steps": [
+        {
+          "title": "Inspect and encode",
+          "command": "cat inputs/02_rot32.txt\npython3 labs/02_rot32.py encode inputs/02_rot32.txt work/rot32.txt\ncat work/rot32.txt",
+          "explain": "The forward operation shifts each letter by +32, equivalent to +6.",
+          "expected": "SOC becomes YUI. Digits 123 remain unchanged."
+        },
+        {
+          "title": "Reverse the rotation",
+          "command": "python3 labs/02_rot32.py decode work/rot32.txt work/rot32_recovered.txt\ncat work/rot32_recovered.txt",
+          "explain": "The reverse operation shifts by -32. Applying +32 twice would not reverse it.",
+          "expected": "The original sentence returns."
+        },
+        {
+          "title": "Verify the recovered bytes",
+          "command": "cmp inputs/02_rot32.txt work/rot32_recovered.txt",
+          "explain": "The entire file, including case and punctuation, must match.",
+          "expected": "No output means a byte-for-byte match."
+        }
+      ],
+      "check": "Predict one letter substitution and explain why 32 wraps to 6."
+    },
+    {
+      "title": "gzip",
+      "definition": "gzip is a compression format. Compression reduces redundancy and decompression reconstructs the original bytes. No secret key is involved.",
+      "tool": "Python 3 gzip library. The gzip CLI can also decompress this exercise.",
+      "steps": [
+        {
+          "title": "Compress your file",
+          "command": "python3 labs/03_gzip.py compress inputs/03_gzip.txt work/message.gz\nod -An -tx1 -N 3 work/message.gz",
+          "explain": "compress creates a gzip stream. od shows its first three bytes in hexadecimal.",
+          "expected": "Header bytes: 1f 8b 08."
+        },
+        {
+          "title": "Decompress your file",
+          "command": "python3 labs/03_gzip.py decompress work/message.gz work/gzip_recovered.txt\ncat work/gzip_recovered.txt",
+          "explain": "decompress reverses compression, with a 4 MiB output limit in this lab.",
+          "expected": "The repeated source sentence returns."
+        },
+        {
+          "title": "Verify and use the native tool",
+          "command": "cmp inputs/03_gzip.txt work/gzip_recovered.txt\ngzip -dc work/message.gz > work/gzip_native.txt\ncmp inputs/03_gzip.txt work/gzip_native.txt",
+          "explain": "gzip -d decompresses and -c writes to stdout. Redirection saves it to a file.",
+          "expected": "Both recovered files match the original."
+        }
+      ],
+      "check": "Explain why opaque compressed bytes do not prove encryption."
+    },
+    {
+      "title": "XOR-92",
+      "definition": "XOR compares bits and returns 1 where they differ. Repeating XOR with the same byte key reverses it. A single repeated byte key is weak obfuscation, with 256 possibilities.",
+      "tool": "Python 3 bytewise ^ operator. Key 92 is decimal and equals hexadecimal 0x5c.",
+      "steps": [
+        {
+          "title": "Apply XOR to your file",
+          "command": "python3 labs/04_xor.py encode inputs/04_xor.txt work/xor.bin --key 92\nod -An -tx1 -N 16 work/xor.bin",
+          "explain": "--key 92 supplies a decimal byte. Each input byte combines with that value.",
+          "expected": "The output bytes differ from the original text."
+        },
+        {
+          "title": "Reverse XOR with the same key",
+          "command": "python3 labs/04_xor.py decode work/xor.bin work/xor_recovered.txt --key 92\ncat work/xor_recovered.txt",
+          "explain": "The ^ operation is identical in both directions. (P XOR K) XOR K equals P.",
+          "expected": "The original practice sentence returns."
+        },
+        {
+          "title": "Compare correct and incorrect keys",
+          "command": "cmp inputs/04_xor.txt work/xor_recovered.txt\npython3 labs/04_xor.py decode work/xor.bin work/xor_wrong.txt --key 93\ncmp inputs/04_xor.txt work/xor_wrong.txt",
+          "explain": "XOR has no authentication tag. A wrong key can still produce output, so compare bytes.",
+          "expected": "First comparison matches. Second reports a difference and status 1."
+        }
+      ],
+      "check": "Explain why wrong-key XOR output can exist while AES-GCM rejects it."
+    },
+    {
+      "title": "AES-256-GCM",
+      "definition": "AES means Advanced Encryption Standard. It is symmetric: the same secret key enables encryption and decryption. Galois/Counter Mode adds authentication. This lab uses a 32-byte key, fresh 12-byte nonce and authentication tag.",
+      "tool": "Node.js built-in node:crypto library. No npm package is required.",
+      "steps": [
+        {
+          "title": "Generate your secret key",
+          "command": "node labs/05_aes.js keygen keys/practice_aes.key",
+          "explain": "keygen creates 32 random bytes. Run this once, then retain the key.",
+          "expected": "A teaching key at keys/practice_aes.key."
+        },
+        {
+          "title": "Encrypt your practice file",
+          "command": "node labs/05_aes.js encrypt inputs/05_aes.txt work/aes.json keys/practice_aes.key\ncat work/aes.json",
+          "explain": "encrypt creates a fresh nonce and tag. Binary fields use Base64 for JSON storage.",
+          "expected": "A packet with algorithm, nonce_b64, tag_b64 and ciphertext_b64. It does not contain the key."
+        },
+        {
+          "title": "Decrypt using your key",
+          "command": "node labs/05_aes.js decrypt work/aes.json work/aes_recovered.txt keys/practice_aes.key\ncat work/aes_recovered.txt",
+          "explain": "decrypt decodes the packet fields, uses the secret key, and verifies the GCM tag before writing output.",
+          "expected": "The original practice sentence returns."
+        },
+        {
+          "title": "Verify, then test a wrong key",
+          "command": "cmp inputs/05_aes.txt work/aes_recovered.txt\nnode labs/05_aes.js keygen keys/wrong_aes.key\nnode labs/05_aes.js decrypt work/aes.json work/aes_wrong.txt keys/wrong_aes.key",
+          "explain": "Use a different generated key. The final command must fail authentication.",
+          "expected": "Comparison matches. Wrong-key command exits nonzero and writes no new plaintext file."
+        }
+      ],
+      "check": "Identify the key, nonce, ciphertext and tag. Explain why Base64 decoding alone cannot recover the message."
+    },
+    {
+      "title": "RSA-OAEP",
+      "definition": "RSA, named for Rivest, Shamir and Adleman, is asymmetric. For confidentiality, the public key encrypts and the matching private key decrypts. OAEP is Optimal Asymmetric Encryption Padding. This lab uses RSA-2048 and SHA-256.",
+      "tool": "Node.js built-in node:crypto library. RSA here protects short messages or AES keys.",
+      "steps": [
+        {
+          "title": "Generate your key pair",
+          "command": "node labs/06_rsa.js keygen keys/practice_rsa",
+          "explain": "keygen creates a public PEM and a private PEM. Retain the matching pair.",
+          "expected": "keys/practice_rsa.public.pem and keys/practice_rsa.private.pem."
+        },
+        {
+          "title": "Encrypt your short message",
+          "command": "node labs/06_rsa.js encrypt inputs/06_rsa.txt work/rsa.b64 keys/practice_rsa.public.pem\ncat work/rsa.b64",
+          "explain": "The public key encrypts the input using OAEP-SHA256. Output uses Base64.",
+          "expected": "A Base64 representation of RSA ciphertext. Values vary each run."
+        },
+        {
+          "title": "Decrypt with the private key",
+          "command": "node labs/06_rsa.js decrypt work/rsa.b64 work/rsa_recovered.txt keys/practice_rsa.private.pem\ncat work/rsa_recovered.txt",
+          "explain": "The matching private key reverses RSA encryption using the same OAEP parameters.",
+          "expected": "The short practice message returns."
+        },
+        {
+          "title": "Verify the recovered message",
+          "command": "cmp inputs/06_rsa.txt work/rsa_recovered.txt",
+          "explain": "A Base64-wrapped public key is still a public key. Decoding it does not create a private key.",
+          "expected": "No output means success. This RSA configuration accepts at most 190 input bytes."
+        }
+      ],
+      "check": "Explain why RSA wraps the 32-byte AES key in the capstone instead of the entire payload."
+    }
+  ],
+  "cap_build": [
+    {
+      "title": "Create your capstone working folder",
+      "command": "mkdir -p work/create\ncat inputs/capstone_payload.js",
+      "explain": "The payload is harmless JavaScript source. Keep it as data during analysis.",
+      "expected": "A trainingEvent object and console print."
+    },
+    {
+      "title": "Apply rotation and XOR",
+      "command": "python3 labs/02_rot32.py encode inputs/capstone_payload.js work/create/rotated.txt\npython3 labs/04_xor.py encode work/create/rotated.txt work/create/xor.bin --key 92",
+      "explain": "Apply two routines you practiced. The sequence matters.",
+      "expected": "Rotated text, followed by XOR ciphertext bytes."
+    },
+    {
+      "title": "Compress and AES-encrypt",
+      "command": "python3 labs/03_gzip.py compress work/create/xor.bin work/create/payload.gz\nnode labs/05_aes.js keygen keys/student_capstone.key\nnode labs/05_aes.js encrypt work/create/payload.gz work/create/aes.json keys/student_capstone.key",
+      "explain": "Compress the XOR bytes, then protect them using your own AES key.",
+      "expected": "A gzip file and an authenticated AES packet."
+    },
+    {
+      "title": "Wrap the AES key with RSA",
+      "command": "node labs/06_rsa.js keygen keys/student_capstone\nnode labs/06_rsa.js encrypt keys/student_capstone.key work/create/wrapped_key.b64 keys/student_capstone.public.pem",
+      "explain": "Hybrid encryption: RSA protects the short AES key. AES protects the full data.",
+      "expected": "RSA ciphertext containing the encrypted AES key."
+    },
+    {
+      "title": "Package and Base64-encode one final file",
+      "command": "python3 exercises/capstone.py package --directory work/create --envelope work/create/envelope.json\npython3 labs/01_base64.py encode work/create/envelope.json work/create/my_capstone.b64",
+      "explain": "package only combines existing fields. Base64 creates the final text artifact.",
+      "expected": "One final file: work/create/my_capstone.b64."
+    }
+  ],
+  "cap_recover": [
+    {
+      "title": "Decode the supplied final file",
+      "command": "mkdir -p work/capstone\npython3 labs/01_base64.py decode challenges/all_layers.b64 work/capstone/envelope.json\ncat work/capstone/envelope.json",
+      "explain": "Base64 is the outside representation of a packet carrying encrypted data and an RSA-wrapped AES key.",
+      "expected": "A JSON envelope with wrapped_key_b64 and aes_packet."
+    },
+    {
+      "title": "Extract the two encrypted fields",
+      "command": "python3 exercises/capstone.py extract",
+      "explain": "This helper separates fields into files. It performs no decryption.",
+      "expected": "work/capstone/wrapped_key.b64 and work/capstone/aes.json."
+    },
+    {
+      "title": "Recover the AES key with RSA",
+      "command": "node labs/06_rsa.js decrypt work/capstone/wrapped_key.b64 work/capstone/aes.key keys/capstone.private.pem",
+      "explain": "Use the supplied matching private key. The output is a binary AES key.",
+      "expected": "A 32-byte key. Check with: wc -c work/capstone/aes.key"
+    },
+    {
+      "title": "Decrypt AES, then decompress gzip",
+      "command": "node labs/05_aes.js decrypt work/capstone/aes.json work/capstone/payload.gz work/capstone/aes.key\npython3 labs/03_gzip.py decompress work/capstone/payload.gz work/capstone/xor.bin",
+      "explain": "Verify AES-GCM authentication before saving gzip bytes, then decompress.",
+      "expected": "XOR ciphertext bytes remain after decompression."
+    },
+    {
+      "title": "Reverse XOR and the rotation",
+      "command": "python3 labs/04_xor.py decode work/capstone/xor.bin work/capstone/rotated.txt --key 92\npython3 labs/02_rot32.py decode work/capstone/rotated.txt work/capstone/recovered.js",
+      "explain": "Reverse the inner transformations in the opposite order from construction.",
+      "expected": "Readable harmless JavaScript source, without executing it."
+    },
+    {
+      "title": "Inspect and verify the payload",
+      "command": "cat work/capstone/recovered.js\npython3 exercises/capstone.py verify",
+      "explain": "Compare exact bytes to the original. A URL string alone does not show a network action.",
+      "expected": "PASS with a SHA-256 fingerprint."
+    }
+  ],
+  "incident": [
+    {
+      "title": "Inspect and preserve the supplied case",
+      "command": "cat challenges/incident/READ_ME_TRAINING.txt\ncat challenges/incident/events.csv\nsha256sum challenges/incident/bundle.lab.b64",
+      "explain": "All events are synthetic. Record source evidence before recovery.",
+      "expected": "Three synthetic encrypted-copy events and a training note."
+    },
+    {
+      "title": "Decode the evidence bundle",
+      "command": "mkdir -p work/incident/recovered\npython3 labs/01_base64.py decode challenges/incident/bundle.lab.b64 work/incident/bundle.json\npython3 exercises/incident.py extract",
+      "explain": "Decode Base64 and split the three records. No decryption happens in extract.",
+      "expected": "Three AES packets and three RSA-wrapped keys under work/incident."
+    },
+    {
+      "title": "Recover the first document key",
+      "command": "node labs/06_rsa.js decrypt work/incident/invoice.txt.wrapped.b64 work/incident/invoice.key keys/incident.private.pem",
+      "explain": "The incident private key is supplied by the instructor for this exercise.",
+      "expected": "A recovered 32-byte AES key for invoice.txt."
+    },
+    {
+      "title": "Restore the first document",
+      "command": "node labs/05_aes.js decrypt work/incident/invoice.txt.aes.json work/incident/recovered/invoice.txt work/incident/invoice.key\ncat work/incident/recovered/invoice.txt",
+      "explain": "Use the recovered file key to authenticate and decrypt the invoice packet.",
+      "expected": "TRAINING INVOICE, Example Company, 125.00 USD."
+    },
+    {
+      "title": "Restore the remaining documents",
+      "command": "for name in staff.csv recovery-plan.txt; do\n  node labs/06_rsa.js decrypt \"work/incident/$name.wrapped.b64\" \"work/incident/$name.key\" keys/incident.private.pem\n  node labs/05_aes.js decrypt \"work/incident/$name.aes.json\" \"work/incident/recovered/$name\" \"work/incident/$name.key\"\ndone",
+      "explain": "Apply the same recovery workflow to the remaining fixed training records.",
+      "expected": "staff.csv and recovery-plan.txt appear in the recovered directory."
+    },
+    {
+      "title": "Validate and report recovery",
+      "command": "python3 exercises/incident.py verify",
+      "explain": "The verifier compares each recovered document\u2019s SHA-256 to a known-good baseline.",
+      "expected": "Three PASS lines, one for each document."
+    }
+  ]
+}

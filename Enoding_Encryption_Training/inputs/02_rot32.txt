@@ -1,0 +1,1 @@
+SOC analyst: rotations change letters, not digits 123.

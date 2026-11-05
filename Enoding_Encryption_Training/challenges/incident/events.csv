@@ -1,0 +1,6 @@
+time,host,process,event,detail
+09:00:00,LAB-WS1,training-fixture,process_start,SYNTHETIC event sequence
+09:00:01,LAB-WS1,training-fixture,encrypted_copy,invoice.txt
+09:00:02,LAB-WS1,training-fixture,encrypted_copy,staff.csv
+09:00:03,LAB-WS1,training-fixture,encrypted_copy,recovery-plan.txt
+09:00:04,LAB-WS1,training-fixture,note_present,READ_ME_TRAINING.txt

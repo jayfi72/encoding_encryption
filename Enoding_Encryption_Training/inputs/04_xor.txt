@@ -1,0 +1,1 @@
+XOR with the same key reverses the operation.
